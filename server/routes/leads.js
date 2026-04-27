@@ -19,13 +19,14 @@ router.post("/", async (req, res) => {
       propertyType = null,
       budget = null,
       preferences = null,
+      message = null,
       status = "new"
     } = req.body;
 
     // ✅ Auto assign brokerId (fallback = 1)
     const brokerId = req.body.brokerId || 1;
 
-    // ✅ Validation
+    // ✅ Validation - only name required
     if (!name) {
       return res.status(400).json({
         success: false,
@@ -33,12 +34,15 @@ router.post("/", async (req, res) => {
       });
     }
 
+    // ✅ Use preferences or message (backwards compatibility)
+    const finalPreferences = preferences || message;
+
     // ✅ Insert lead
     const result = await run(
       `INSERT INTO leads 
       (brokerId, name, phone, email, city, propertyType, budget, preferences, status, updatedAt)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`,
-      [brokerId, name, phone, email, city, propertyType, budget, preferences, status]
+      [brokerId, name, phone, email, city, propertyType, budget, finalPreferences, status]
     );
 
     return res.json({
