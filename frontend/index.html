@@ -1,0 +1,2459 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NEW UI LOADED</title>
+    <link rel="stylesheet" href="./styles-new.css" />
+  </head>
+  <body>
+    <!-- Navigation -->
+    <nav class="nav">
+      <div class="nav-container">
+        <a href="/" class="nav-brand">
+          <span id="navBrand">PropertyHub</span>
+        </a>
+        <div class="nav-links">
+          <a href="/" class="nav-link active" id="browseLink">Browse Properties</a>
+          <a href="/query" class="nav-link" id="queryLink">Ask Query</a>
+          <a href="/dashboard" class="nav-link" id="dashboardLink">Dashboard</a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content Container -->
+    <main class="container" id="mainContent">
+      <!-- Content will be dynamically loaded here -->
+    </main>
+
+    <!-- Bottom Navigation -->
+    <nav class="bottom-nav">
+      <div class="bottom-nav-container">
+        <a href="/" class="bottom-nav-item active" id="bottomBrowse">
+          <span>Home</span>
+          <span>Browse</span>
+        </a>
+        <a href="/query" class="bottom-nav-item" id="bottomQuery">
+          <span>Query</span>
+          <span>Ask</span>
+        </a>
+        <a href="/dashboard" class="bottom-nav-item" id="bottomDashboard">
+          <span>Dashboard</span>
+          <span>Manage</span>
+        </a>
+      </div>
+    </nav>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+      // Simple SPA Router
+      class PropertyHubRouter {
+        constructor() {
+          this.routes = new Map();
+          this.currentRoute = '/';
+          this.init();
+        }
+
+        init() {
+          this.setupRoutes();
+          this.setupNavigation();
+          this.handleRoute();
+        }
+
+        setupRoutes() {
+          // Browse Properties Route
+          this.routes.set('/', () => this.showBrowseProperties());
+          
+          // Query Form Route
+          this.routes.set('/query', () => this.showQueryForm());
+          
+          // Dashboard Route
+          this.routes.set('/dashboard', () => this.showDashboard());
+        }
+
+        setupNavigation() {
+          // Handle browser navigation
+          window.addEventListener('popstate', () => {
+            this.handleRoute();
+          });
+
+          // Handle navigation clicks
+          document.addEventListener('click', (e) => {
+            if (e.target.tagName === 'A' && e.target.href) {
+              e.preventDefault();
+              const href = e.target.getAttribute('href');
+              if (this.routes.has(href)) {
+                this.navigateTo(href);
+              }
+            }
+          });
+        }
+
+        navigateTo(path, data = {}) {
+          if (this.routes.has(path)) {
+            // Store property data if provided
+            if (data.property) {
+              this.currentProperty = data.property;
+            }
+            history.pushState(null, null, path);
+            this.handleRoute(data);
+          }
+        }
+
+        handleRoute(data = {}) {
+          const path = window.location.pathname;
+          this.currentRoute = path;
+          
+          // Update active nav states
+          this.updateActiveNav(path);
+          
+          // Store property data if provided
+          if (data.property) {
+            this.currentProperty = data.property;
+          }
+          
+          // Handle dashboard route with auth check
+          if (path === '/dashboard') {
+            const token = localStorage.getItem('authToken');
+            if (!token) {
+              this.showLoginPage();
+              return;
+            } else {
+              this.showDashboard();
+              return;
+            }
+          }
+          
+          // Execute route handler for non-dashboard routes
+          if (this.routes.has(path)) {
+            this.routes.get(path)();
+          } else {
+            this.show404();
+          }
+        }
+
+        updateActiveNav(path) {
+          // Update top navigation
+          document.querySelectorAll('.nav-link').forEach(link => {
+            link.classList.remove('active');
+            if (link.getAttribute('href') === path) {
+              link.classList.add('active');
+            }
+          });
+
+          // Update bottom navigation
+          document.querySelectorAll('.bottom-nav-item').forEach(item => {
+            item.classList.remove('active');
+            const href = item.getAttribute('href');
+            if (href === path) {
+              item.classList.add('active');
+            }
+          });
+        }
+
+        showBrowseProperties() {
+          const mainContent = document.getElementById('mainContent');
+          mainContent.innerHTML = `
+            <div style="padding: var(--space-8);">
+              <div class="text-center" style="margin-bottom: var(--space-8);">
+                <h2 style="margin-bottom: var(--space-2);">Browse Properties</h2>
+                <p style="color: var(--neutral-600);">Find your perfect property from our curated collection.</p>
+              </div>
+
+              <!-- Search Filters -->
+              <div class="card" style="max-width: 800px; margin: 0 auto var(--space-6);">
+                <div style="padding: var(--space-6);">
+                  <h3 style="margin-bottom: var(--space-4);">Search Properties</h3>
+                  <div class="row two" style="display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+                    <div class="form-group">
+                      <label for="searchLocation" class="form-label">Location</label>
+                      <input 
+                        type="text" 
+                        id="searchLocation" 
+                        class="form-input" 
+                        placeholder="Enter city or neighborhood"
+                      />
+                    </div>
+                    
+                    <div class="form-group">
+                      <label for="propertyType" class="form-label">Property Type</label>
+                      <select id="propertyType" class="form-input">
+                        <option value="">All Types</option>
+                        <option value="House">House</option>
+                        <option value="Condo">Condo</option>
+                        <option value="Townhouse">Townhouse</option>
+                        <option value="Apartment">Apartment</option>
+                      </select>
+                    </div>
+                    
+                    <div class="form-group">
+                      <label for="priceRange" class="form-label">Price Range</label>
+                      <select id="priceRange" class="form-input">
+                        <option value="">Any Price</option>
+                        <option value="0-300000">Under $300K</option>
+                        <option value="300000-500000">$300K - $500K</option>
+                        <option value="500000-750000">$500K - $750K</option>
+                        <option value="750000-1000000">$750K - $1M</option>
+                        <option value="1000000+">Over $1M</option>
+                      </select>
+                    </div>
+                    
+                    <div class="form-group">
+                      <label for="bedrooms" class="form-label">Bedrooms</label>
+                      <select id="bedrooms" class="form-input">
+                        <option value="">Any</option>
+                        <option value="1">1+</option>
+                        <option value="2">2+</option>
+                        <option value="3">3+</option>
+                        <option value="4">4+</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div style="display: flex; gap: var(--space-3);">
+                    <button id="searchBtn" class="btn btn-primary">
+                      <span>Search Properties</span>
+                    </button>
+                    <button id="resetBtn" class="btn btn-secondary">
+                      Clear Filters
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Property Listings -->
+              <div id="propertyListings" class="grid" style="grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));">
+                <!-- Properties will be loaded here -->
+              </div>
+
+              <!-- Loading State -->
+              <div id="loadingState" class="text-center" style="padding: var(--space-8);">
+                <div style="display: inline-block; padding: var(--space-4); background: var(--neutral-100); border-radius: var(--radius);">
+                  <div style="font-size: 1.2rem; margin-bottom: var(--space-2);">Loading properties...</div>
+                </div>
+              </div>
+
+              <!-- Empty State -->
+              <div id="emptyState" class="text-center hidden" style="padding: var(--space-8);">
+                <div style="display: inline-block; padding: var(--space-4); background: var(--neutral-100); border-radius: var(--radius);">
+                  <div style="font-size: 1.2rem; margin-bottom: var(--space-2);">No properties found</div>
+                  <p style="color: var(--neutral-600);">Try adjusting your search filters.</p>
+                </div>
+              </div>
+            </div>
+          `;
+          
+          this.loadProperties();
+          this.setupPropertySearch();
+        }
+
+        showQueryForm() {
+          const mainContent = document.getElementById('mainContent');
+          
+          mainContent.innerHTML = `
+            <div style="max-width: 900px; margin: 0 auto; height: 100vh; display: flex; flex-direction: column;">
+              <div class="card" style="flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+                <!-- Chat Header -->
+                <div style="padding: var(--space-4); background: var(--primary-500); color: white; border-radius: var(--radius) var(--radius) 0 0; position: relative;">
+                  <div style="display: flex; align-items: center; gap: var(--space-3);">
+                    <div style="width: 40px; height: 40px; background: var(--primary-600); border-radius: 50%; display: flex; align-items: center; justify-content: center;">
+                      <span style="font-size: 1.2rem;">AI</span>
+                    </div>
+                    <div style="flex: 1;">
+                      <h3 style="margin: 0; font-size: 1.1rem;">Property Assistant</h3>
+                      <p style="margin: 0; font-size: 0.875rem; opacity: 0.9;">Online - Ready to help you find your dream property</p>
+                    </div>
+                    <button 
+                      id="newChatBtn"
+                      onclick="router.startNewChat()" 
+                      style="padding: var(--space-1) var(--space-2); background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); border-radius: var(--radius); cursor: pointer; font-size: 0.75rem; font-weight: 500; transition: all 0.2s;"
+                      onmouseover="this.style.background='rgba(255,255,255,0.3)'"
+                      onmouseout="this.style.background='rgba(255,255,255,0.2)'"
+                    >
+                      New Chat
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Chat Messages Container -->
+                <div id="chatMessages" style="flex: 1; padding: var(--space-4); overflow-y: auto; background: #f8f9fa; min-height: 400px;">
+                  <!-- Messages will be dynamically added here -->
+                </div>
+
+                <!-- Quick Replies Container -->
+                <div id="quickReplies" style="padding: var(--space-4); background: white; border-top: 1px solid var(--neutral-200);">
+                  <!-- Quick reply buttons will be dynamically added here -->
+                </div>
+
+                <!-- Chat Input -->
+                <div style="padding: var(--space-4); background: white; border-top: 1px solid var(--neutral-200); border-radius: 0 0 var(--radius) var(--radius);">
+                  <div style="display: flex; gap: var(--space-2); align-items: center;">
+                    <input 
+                      type="text" 
+                      id="chatInput" 
+                      placeholder="Type your message..." 
+                      style="flex: 1; padding: var(--space-3); border: 1px solid var(--neutral-300); border-radius: var(--radius); font-size: 1rem;"
+                      onkeypress="if(event.key === 'Enter') router.sendMessage()"
+                    />
+                    <button 
+                      onclick="router.sendMessage()" 
+                      style="padding: var(--space-3) var(--space-4); background: var(--primary-500); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 1rem;"
+                    >
+                      Send
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          
+          // Initialize chat conversation
+          this.initializeChat();
+        }
+
+        initializeChat() {
+          // Load saved chat state
+          this.loadChatState();
+          
+          // If no saved state, initialize fresh chat
+          if (!this.chatMessages || this.chatMessages.length === 0) {
+            this.initChat();
+          } else {
+            // Restore existing chat
+            this.renderMessages();
+            this.scrollToBottom();
+            
+            // Show appropriate next step based on saved step
+            if (this.currentQuestionIndex < this.conversationFlow.length) {
+              const nextQuestion = this.conversationFlow[this.currentQuestionIndex];
+              this.addMessage('bot', nextQuestion.question);
+              
+              if (nextQuestion.input) {
+                this.showTextInput(nextQuestion);
+              } else {
+                this.showQuickReplies(nextQuestion.options);
+              }
+            }
+          }
+        }
+
+        initChat() {
+          // Reset all chat state
+          this.chatMessages = [];
+          this.currentQuestionIndex = 0;
+          this.userResponses = {};
+          
+          // Lead data collection
+          this.leadData = {
+            name: "",
+            phone: "",
+            email: "",
+            city: "",
+            propertyType: "",
+            budget: "",
+            preferences: "",
+            source: "chat"
+          };
+          
+          // Conversation flow
+          this.conversationFlow = [
+            {
+              id: 'greeting',
+              question: "Hi! I'm your Property Assistant. Are you looking to buy or rent a property?",
+              options: ['Buy', 'Rent'],
+              next: 'location'
+            },
+            {
+              id: 'location',
+              question: "Great! Which city are you interested in?",
+              options: ['New York', 'Los Angeles', 'Chicago', 'Houston', 'Phoenix', 'Other'],
+              next: 'budget'
+            },
+            {
+              id: 'budget',
+              question: "What's your budget range?",
+              options: ['Under $300k', '$300k - $500k', '$500k - $700k', '$700k - $1M', 'Above $1M'],
+              next: 'propertyType'
+            },
+            {
+              id: 'propertyType',
+              question: "What type of property are you looking for?",
+              options: ['Apartment', 'House', 'Condo', 'Townhouse', 'Studio'],
+              next: 'bedrooms'
+            },
+            {
+              id: 'bedrooms',
+              question: "How many bedrooms do you need?",
+              options: ['1 Bedroom', '2 Bedrooms', '3 Bedrooms', '4 Bedrooms', '5+ Bedrooms'],
+              next: 'contact'
+            },
+            {
+              id: 'contact',
+              question: "Perfect! I have some great options for you. To schedule a visit, I'll need your contact details. What's your name?",
+              input: 'text',
+              placeholder: 'Enter your full name',
+              next: 'phone'
+            },
+            {
+              id: 'phone',
+              question: "Thanks! What's your phone number?",
+              input: 'text',
+              placeholder: 'Enter your phone number',
+              next: 'email'
+            },
+            {
+              id: 'email',
+              question: "Last question - what's your email address?",
+              input: 'email',
+              placeholder: 'Enter your email address',
+              next: 'completion'
+            },
+            {
+              id: 'completion',
+              question: "Excellent! I have all your details. Let me create your lead and help you schedule a visit.",
+              options: ['Create Lead & Schedule Visit', 'Send More Details', 'I Need Time to Think'],
+              next: null
+            }
+          ];
+          
+          // Clear UI containers
+          const messagesContainer = document.getElementById('chatMessages');
+          const quickRepliesContainer = document.getElementById('quickReplies');
+          
+          if (messagesContainer) {
+            messagesContainer.innerHTML = '';
+          }
+          
+          if (quickRepliesContainer) {
+            quickRepliesContainer.innerHTML = '';
+          }
+          
+          // Start fresh conversation
+          this.addMessage('bot', this.conversationFlow[0].question);
+          this.showQuickReplies(this.conversationFlow[0].options);
+        }
+
+        addMessage(sender, message) {
+          // Create message object
+          const messageObj = {
+            sender,
+            message,
+            timestamp: new Date()
+          };
+          
+          // Add to messages array
+          this.chatMessages.push(messageObj);
+          
+          // Save to localStorage for persistence
+          this.saveChatState();
+          
+          // Render messages
+          this.renderMessages();
+          this.scrollToBottom();
+        }
+
+        saveChatState() {
+          try {
+            localStorage.setItem('chatMessages', JSON.stringify(this.chatMessages));
+            localStorage.setItem('leadData', JSON.stringify(this.leadData));
+            localStorage.setItem('chatStep', this.currentQuestionIndex.toString());
+          } catch (error) {
+            console.error('Failed to save chat state:', error);
+          }
+        }
+
+        loadChatState() {
+          try {
+            const savedMessages = localStorage.getItem('chatMessages');
+            const savedLeadData = localStorage.getItem('leadData');
+            const savedStep = localStorage.getItem('chatStep');
+            
+            if (savedMessages) {
+              this.chatMessages = JSON.parse(savedMessages);
+            }
+            
+            if (savedLeadData) {
+              this.leadData = JSON.parse(savedLeadData);
+            }
+            
+            if (savedStep) {
+              this.currentQuestionIndex = parseInt(savedStep);
+            }
+          } catch (error) {
+            console.error('Failed to load chat state:', error);
+          }
+        }
+
+        clearChatState() {
+          try {
+            localStorage.removeItem('chatMessages');
+            localStorage.removeItem('leadData');
+            localStorage.removeItem('chatStep');
+          } catch (error) {
+            console.error('Failed to clear chat state:', error);
+          }
+        }
+
+        startNewChat() {
+          // Confirm before clearing if there's an active conversation
+          if (this.chatMessages && this.chatMessages.length > 2) {
+            if (!confirm('Start a new chat? Your current conversation will be lost.')) {
+              return;
+            }
+          }
+          
+          // Clear all chat data
+          this.clearChatState();
+          
+          // Reinitialize using centralized function
+          this.initChat();
+        }
+
+        renderMessages() {
+          const messagesContainer = document.getElementById('chatMessages');
+          if (!messagesContainer) {
+            console.error('Chat messages container not found');
+            return;
+          }
+          
+          try {
+            messagesContainer.innerHTML = this.chatMessages.map(msg => {
+              const isBot = msg.sender === 'bot';
+              const bubbleStyle = isBot ? 
+                'background: #e3f2fd; color: #1976d2; align-self: flex-start;' : 
+                'background: var(--primary-500); color: white; align-self: flex-end;';
+              
+              return `
+                <div style="display: flex; margin-bottom: var(--space-3); ${isBot ? 'justify-content: flex-start;' : 'justify-content: flex-end;'}">
+                  <div style="${bubbleStyle} padding: var(--space-3) var(--space-4); border-radius: var(--radius); max-width: 70%; word-wrap: break-word;">
+                    ${msg.message}
+                  </div>
+                </div>
+              `;
+            }).join('');
+            
+            // Auto-scroll to bottom after rendering
+            setTimeout(() => {
+              this.scrollToBottom();
+            }, 100);
+          } catch (error) {
+            console.error('Error rendering messages:', error);
+          }
+        }
+
+        showQuickReplies(options) {
+          const quickRepliesContainer = document.getElementById('quickReplies');
+          if (!quickRepliesContainer) return;
+          
+          quickRepliesContainer.innerHTML = `
+            <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+              ${options.map(option => `
+                <button 
+                  onclick="router.handleQuickReply('${option}')" 
+                  style="padding: var(--space-2) var(--space-3); background: white; border: 1px solid var(--primary-300); color: var(--primary-600); border-radius: var(--radius); cursor: pointer; font-size: 0.875rem; transition: all 0.2s;"
+                  onmouseover="this.style.background='var(--primary-50)'"
+                  onmouseout="this.style.background='white'"
+                >
+                  ${option}
+                </button>
+              `).join('')}
+            </div>
+          `;
+        }
+
+        handleQuickReply(option) {
+          console.log('handleQuickReply called with option:', option);
+          console.log('Current question index:', this.currentQuestionIndex);
+          console.log('Current question:', this.conversationFlow[this.currentQuestionIndex]);
+          
+          // Add user message
+          this.addMessage('user', option);
+          
+          // Handle special case for lead creation
+          if (option === 'Create Lead & Schedule Visit') {
+            console.log('Triggering lead creation...');
+            this.createLeadFromChat();
+            return;
+          }
+          
+          // Store user response
+          const currentQuestion = this.conversationFlow[this.currentQuestionIndex];
+          this.userResponses[currentQuestion.id] = option;
+          
+          console.log('User responses updated:', this.userResponses);
+          
+          // Store in leadData based on question type
+          this.updateLeadData(currentQuestion.id, option);
+          
+          console.log('Lead data updated:', this.leadData);
+          
+          // Hide quick replies
+          const quickRepliesContainer = document.getElementById('quickReplies');
+          if (quickRepliesContainer) {
+            quickRepliesContainer.innerHTML = '';
+          }
+          
+          // Move to next question
+          this.currentQuestionIndex++;
+          
+          console.log('Moving to next question. New index:', this.currentQuestionIndex);
+          console.log('Total conversation flow length:', this.conversationFlow.length);
+          
+          if (this.currentQuestionIndex < this.conversationFlow.length) {
+            const nextQuestion = this.conversationFlow[this.currentQuestionIndex];
+            console.log('Next question:', nextQuestion);
+            setTimeout(() => {
+              this.addMessage('bot', nextQuestion.question);
+              
+              // Check if next question requires text input
+              if (nextQuestion.input) {
+                console.log('Showing text input for:', nextQuestion.id);
+                this.showTextInput(nextQuestion);
+              } else {
+                console.log('Showing quick replies for:', nextQuestion.id);
+                this.showQuickReplies(nextQuestion.options);
+              }
+            }, 800);
+          } else {
+            console.log('Conversation complete, calling handleConversationComplete');
+            // Conversation complete
+            setTimeout(() => {
+              this.handleConversationComplete();
+            }, 1000);
+          }
+        }
+
+        updateLeadData(questionId, response) {
+          switch(questionId) {
+            case 'greeting':
+              this.leadData.preferences = `Looking to ${response.toLowerCase()} a property`;
+              break;
+            case 'location':
+              this.leadData.city = response;
+              break;
+            case 'budget':
+              this.leadData.budget = response;
+              break;
+            case 'propertyType':
+              this.leadData.propertyType = response;
+              break;
+            case 'bedrooms':
+              this.leadData.preferences += `, ${response} preferred`;
+              break;
+            case 'contact':
+              this.leadData.name = response;
+              break;
+            case 'phone':
+              this.leadData.phone = response;
+              break;
+            case 'email':
+              this.leadData.email = response;
+              break;
+          }
+        }
+
+        showTextInput(question) {
+          const quickRepliesContainer = document.getElementById('quickReplies');
+          if (!quickRepliesContainer) return;
+          
+          const inputType = question.input || 'text';
+          const placeholder = question.placeholder || 'Type your response...';
+          
+          quickRepliesContainer.innerHTML = `
+            <div style="display: flex; gap: var(--space-2); align-items: center;">
+              <input 
+                type="${inputType}"
+                id="chatTextInput" 
+                placeholder="${placeholder}" 
+                style="flex: 1; padding: var(--space-3); border: 1px solid var(--neutral-300); border-radius: var(--radius); font-size: 1rem;"
+                onkeypress="if(event.key === 'Enter') router.submitTextResponse()"
+              />
+              <button 
+                onclick="router.submitTextResponse()" 
+                style="padding: var(--space-3) var(--space-4); background: var(--primary-500); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 1rem;"
+              >
+                Send
+              </button>
+            </div>
+          `;
+          
+          // Focus on input
+          setTimeout(() => {
+            const input = document.getElementById('chatTextInput');
+            if (input) {
+              input.focus();
+            }
+          }, 100);
+        }
+
+        submitTextResponse() {
+          console.log('submitTextResponse called');
+          const input = document.getElementById('chatTextInput');
+          if (!input) {
+            console.log('No input element found');
+            return;
+          }
+          
+          const response = input.value.trim();
+          console.log('Text response:', response);
+          if (!response) {
+            console.log('Empty response, not submitting');
+            return;
+          }
+          
+          console.log('Calling handleQuickReply with text response');
+          this.handleQuickReply(response);
+        }
+
+        sendMessage() {
+          const input = document.getElementById('chatInput');
+          if (!input) return;
+          
+          const message = input.value.trim();
+          if (!message) return;
+          
+          // Add user message
+          this.addMessage('user', message);
+          input.value = '';
+          
+          // Get AI response (placeholder for now)
+          setTimeout(() => {
+            const response = this.getAIResponse(message);
+            this.addMessage('bot', response);
+          }, 1000);
+        }
+
+        getAIResponse(message) {
+          // Placeholder for future OpenAI integration
+          const responses = [
+            "That's interesting! Let me help you with that.",
+            "I understand your requirements. Let me find some options for you.",
+            "Great choice! I have some excellent properties that match your criteria.",
+            "Thanks for the information. I'll find the best matches for you."
+          ];
+          
+          return responses[Math.floor(Math.random() * responses.length)];
+        }
+
+        handleConversationComplete() {
+          const completionMessage = `Perfect! Based on your preferences, I've found some excellent property matches for you. Here's a summary:
+
+Looking to: ${this.userResponses.greeting || 'Buy'}
+Location: ${this.leadData.city || 'Not specified'}
+Budget: ${this.leadData.budget || 'Not specified'}
+Property Type: ${this.leadData.propertyType || 'Not specified'}
+Bedrooms: ${this.userResponses.bedrooms || 'Not specified'}
+
+Our team will contact you shortly with the best property options. Would you like to schedule a viewing?`;
+          
+          this.addMessage('bot', completionMessage);
+          
+          // Show final action buttons
+          const quickRepliesContainer = document.getElementById('quickReplies');
+          if (quickRepliesContainer) {
+            quickRepliesContainer.innerHTML = `
+              <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+                <button 
+                  onclick="router.createLeadFromChat()" 
+                  style="padding: var(--space-2) var(--space-3); background: var(--primary-500); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 0.875rem; font-weight: 600;"
+                >
+                  Schedule Visit
+                </button>
+                <button 
+                  onclick="router.handleQuickReply('Send More Details')" 
+                  style="padding: var(--space-2) var(--space-3); background: var(--secondary-500); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 0.875rem;"
+                >
+                  Send More Details
+                </button>
+                <button 
+                  onclick="router.handleQuickReply('Start New Chat')" 
+                  style="padding: var(--space-2) var(--space-3); background: var(--neutral-500); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 0.875rem;"
+                >
+                  Start New Chat
+                </button>
+              </div>
+            `;
+          }
+        }
+
+        async createLeadFromChat() {
+          try {
+            // Debug: Log current lead data
+            console.log('Current lead data:', this.leadData);
+            console.log('User responses:', this.userResponses);
+            
+            // Validate required fields
+            if (!this.leadData.name || !this.leadData.phone || !this.leadData.email) {
+              console.log('Missing contact info:', {
+                name: !!this.leadData.name,
+                phone: !!this.leadData.phone,
+                email: !!this.leadData.email
+              });
+              
+              this.addMessage('bot', "I need your contact information to schedule a visit. Let me get those details first.");
+              this.currentQuestionIndex = this.conversationFlow.findIndex(q => q.id === 'contact');
+              const nextQuestion = this.conversationFlow[this.currentQuestionIndex];
+              setTimeout(() => {
+                this.addMessage('bot', nextQuestion.question);
+                this.showTextInput(nextQuestion);
+              }, 800);
+              return;
+            }
+
+            // Show loading message
+            this.addMessage('bot', "Creating your lead and scheduling visit...");
+            
+            // Generate chat summary
+            this.leadData.preferences = `
+Looking to ${this.userResponses.greeting?.toLowerCase() || 'buy'} a property
+City: ${this.leadData.city || 'Not specified'}
+Budget: ${this.leadData.budget || 'Not specified'}
+Property Type: ${this.leadData.propertyType || 'Not specified'}
+Bedrooms: ${this.userResponses.bedrooms || 'Not specified'}
+Source: Chat Assistant
+`.trim();
+
+            console.log('Sending lead data:', {
+              name: this.leadData.name,
+              phone: this.leadData.phone,
+              email: this.leadData.email,
+              city: this.leadData.city,
+              propertyType: this.leadData.propertyType,
+              budget: this.leadData.budget,
+              message: this.leadData.preferences,
+              source: 'chat',
+              brokerId: 1
+            });
+
+            // Create lead via API
+            const response = await fetch('/api/leads', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json'
+              },
+              body: JSON.stringify({
+                name: this.leadData.name,
+                phone: this.leadData.phone,
+                email: this.leadData.email,
+                city: this.leadData.city,
+                propertyType: this.leadData.propertyType,
+                budget: this.leadData.budget,
+                message: this.leadData.preferences,
+                source: 'chat',
+                brokerId: 1 // Master Broker
+              })
+            });
+
+            console.log('Lead creation response status:', response.status);
+            
+            if (response.ok) {
+              const result = await response.json();
+              const leadId = result.id || result.leadId;
+              console.log('Lead created successfully:', result);
+              
+              // Clear chat state after successful lead creation
+              this.clearChatState();
+              
+              // Clear quick replies
+              const quickRepliesContainer = document.getElementById('quickReplies');
+              if (quickRepliesContainer) {
+                quickRepliesContainer.innerHTML = '';
+              }
+              
+              // Show success message with appointment link
+              this.addMessage('bot', `Excellent! Your visit request has been submitted successfully. 
+
+Lead ID: #${leadId}
+Name: ${this.leadData.name}
+Phone: ${this.leadData.phone}
+
+📅 **Schedule Your Property Visit:**
+Click here to book your appointment: https://calendly.com/propertyhub/15min
+
+Our team will contact you within 24 hours to schedule the perfect property viewing. Thank you for choosing our services!`);
+              
+              // Show completion options
+              setTimeout(() => {
+                this.showCompletionOptions();
+              }, 2000);
+              
+            } else {
+              const errorText = await response.text();
+              console.error('Lead creation failed:', errorText);
+              this.addMessage('bot', "Sorry, there was an issue creating your lead. Please try again or contact our support team directly.");
+            }
+            
+          } catch (error) {
+            console.error('Error creating lead:', error);
+            this.addMessage('bot', "Sorry, there was a technical issue. Please try again in a moment.");
+          }
+        }
+
+        showCompletionOptions() {
+          const quickRepliesContainer = document.getElementById('quickReplies');
+          if (quickRepliesContainer) {
+            quickRepliesContainer.innerHTML = `
+              <div style="display: flex; flex-wrap: wrap; gap: var(--space-2);">
+                <button 
+                  onclick="router.initializeChat()" 
+                  style="padding: var(--space-2) var(--space-3); background: var(--primary-500); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 0.875rem;"
+                >
+                  Start New Chat
+                </button>
+                <button 
+                  onclick="router.navigateTo('/')" 
+                  style="padding: var(--space-2) var(--space-3); background: var(--secondary-500); color: white; border: none; border-radius: var(--radius); cursor: pointer; font-size: 0.875rem;"
+                >
+                  Browse Properties
+                </button>
+              </div>
+            `;
+          }
+        }
+
+        scrollToBottom() {
+          const messagesContainer = document.getElementById('chatMessages');
+          if (messagesContainer) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+          }
+        }
+
+        showDashboard() {
+          // Show dashboard for authenticated users only
+          this.showDashboardContent();
+        }
+
+        showLoginPage() {
+          const mainContent = document.getElementById('mainContent');
+          mainContent.innerHTML = `
+            <div style="max-width: 400px; margin: 100px auto; padding: var(--space-8);">
+              <div class="card" style="text-align: center;">
+                <h2 style="margin-bottom: var(--space-4);">Agent Login Required</h2>
+                <p style="color: var(--neutral-600); margin-bottom: var(--space-4);">
+                  Access to the dashboard is restricted to authorized agents and brokers only.
+                </p>
+                <div style="margin-bottom: var(--space-4);">
+                  <input 
+                    type="email" 
+                    id="loginEmail" 
+                    placeholder="Email address" 
+                    style="width: 100%; padding: var(--space-3); border: 1px solid var(--neutral-300); border-radius: var(--radius); margin-bottom: var(--space-2);"
+                  />
+                </div>
+                <div style="margin-bottom: var(--space-4);">
+                  <input 
+                    type="password" 
+                    id="loginPassword" 
+                    placeholder="Password" 
+                    style="width: 100%; padding: var(--space-3); border: 1px solid var(--neutral-300); border-radius: var(--radius); margin-bottom: var(--space-2);"
+                  />
+                </div>
+                <button 
+                  onclick="router.handleLogin()" 
+                  class="btn btn-primary" 
+                  style="width: 100%;"
+                >
+                  Login to Dashboard
+                </button>
+                <div style="margin-top: var(--space-4);">
+                  <a href="/" onclick="router.navigateTo('/')" style="color: var(--primary-500); text-decoration: none;">
+                    ← Back to Property Search
+                  </a>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        handleLogin() {
+          const email = document.getElementById('loginEmail').value;
+          const password = document.getElementById('loginPassword').value;
+          
+          if (!email || !password) {
+            alert('Please enter both email and password');
+            return;
+          }
+          
+          // Call authentication API
+          fetch('/api/auth/login', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              email,
+              password
+            })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.success) {
+              // Store authentication data
+              localStorage.setItem('authToken', data.token);
+              localStorage.setItem('clientId', data.clientId);
+              localStorage.setItem('userEmail', data.email);
+              localStorage.setItem('userName', data.name);
+              localStorage.setItem('userRole', data.role);
+              
+              // Navigate to dashboard
+              this.navigateTo('/dashboard');
+            } else {
+              alert(data.error || 'Login failed');
+            }
+          })
+          .catch(error => {
+            console.error('Login error:', error);
+            alert('Login failed. Please try again.');
+          });
+        }
+
+        show404() {
+          const mainContent = document.getElementById('mainContent');
+          mainContent.innerHTML = `
+            <div class="text-center" style="padding: var(--space-8);">
+              <div style="font-size: 3rem; margin-bottom: var(--space-4);">404</div>
+              <h2 style="margin-bottom: var(--space-2);">Page Not Found</h2>
+              <p style="color: var(--neutral-600);">The page you're looking for doesn't exist.</p>
+              <button onclick="router.navigateTo('/')" class="btn btn-primary">Go Home</button>
+            </div>
+          `;
+        }
+
+        loadProperties() {
+          // Simulate property loading with more properties
+          this.allProperties = [
+            {
+              id: 1,
+              title: "Modern Downtown Condo",
+              price: 495000,
+              location: "Downtown Austin, TX",
+              type: "Condo",
+              beds: 2,
+              baths: 2,
+              sqft: 1200,
+              image: "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?auto=format&fit=crop&w=800&q=70",
+              featured: true
+            },
+            {
+              id: 2,
+              title: "Spacious Family Home",
+              price: 750000,
+              location: "Westlake, Austin, TX",
+              type: "House",
+              beds: 4,
+              baths: 3,
+              sqft: 2800,
+              image: "https://images.unsplash.com/photo-1570129477492-45c003edd2be?auto=format&fit=crop&w=800&q=70",
+              featured: false
+            },
+            {
+              id: 3,
+              title: "Luxury Penthouse",
+              price: 1250000,
+              location: "Downtown Austin, TX",
+              type: "Condo",
+              beds: 3,
+              baths: 3,
+              sqft: 2200,
+              image: "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=800&q=70",
+              featured: true
+            },
+            {
+              id: 4,
+              title: "Cozy Townhouse",
+              price: 350000,
+              location: "South Austin, TX",
+              type: "Townhouse",
+              beds: 3,
+              baths: 2,
+              sqft: 1600,
+              image: "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?auto=format&fit=crop&w=800&q=70",
+              featured: false
+            },
+            {
+              id: 5,
+              title: "Modern Apartment",
+              price: 280000,
+              location: "North Austin, TX",
+              type: "Apartment",
+              beds: 2,
+              baths: 1,
+              sqft: 900,
+              image: "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=70",
+              featured: false
+            },
+            {
+              id: 6,
+              title: "Estate Home",
+              price: 980000,
+              location: "Westlake, Austin, TX",
+              type: "House",
+              beds: 5,
+              baths: 4,
+              sqft: 3500,
+              image: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=70",
+              featured: true
+            }
+          ];
+
+          this.displayProperties(this.allProperties);
+        }
+
+        setupPropertySearch() {
+          const searchBtn = document.getElementById('searchBtn');
+          const resetBtn = document.getElementById('resetBtn');
+
+          if (searchBtn) {
+            searchBtn.addEventListener('click', () => this.searchProperties());
+          }
+
+          if (resetBtn) {
+            resetBtn.addEventListener('click', () => this.resetFilters());
+          }
+
+          // Add enter key support for location search
+          const locationInput = document.getElementById('searchLocation');
+          if (locationInput) {
+            locationInput.addEventListener('keypress', (e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                this.searchProperties();
+              }
+            });
+          }
+        }
+
+        searchProperties() {
+          const location = document.getElementById('searchLocation').value.toLowerCase();
+          const propertyType = document.getElementById('propertyType').value;
+          const priceRange = document.getElementById('priceRange').value;
+          const bedrooms = document.getElementById('bedrooms').value;
+
+          let filteredProperties = this.allProperties.filter(property => {
+            // Location filter
+            if (location && !property.location.toLowerCase().includes(location)) {
+              return false;
+            }
+
+            // Property type filter
+            if (propertyType && property.type !== propertyType) {
+              return false;
+            }
+
+            // Price range filter
+            if (priceRange) {
+              if (priceRange === '0-300000' && property.price >= 300000) return false;
+              if (priceRange === '300000-500000' && (property.price < 300000 || property.price >= 500000)) return false;
+              if (priceRange === '500000-750000' && (property.price < 500000 || property.price >= 750000)) return false;
+              if (priceRange === '750000-1000000' && (property.price < 750000 || property.price >= 1000000)) return false;
+              if (priceRange === '1000000+' && property.price < 1000000) return false;
+            }
+
+            // Bedrooms filter
+            if (bedrooms) {
+              const minBeds = parseInt(bedrooms);
+              if (property.beds < minBeds) return false;
+            }
+
+            return true;
+          });
+
+          this.displayProperties(filteredProperties);
+        }
+
+        resetFilters() {
+          document.getElementById('searchLocation').value = '';
+          document.getElementById('propertyType').value = '';
+          document.getElementById('priceRange').value = '';
+          document.getElementById('bedrooms').value = '';
+          
+          this.displayProperties(this.allProperties);
+        }
+
+        displayProperties(properties) {
+          const container = document.getElementById('propertyListings');
+          const loadingState = document.getElementById('loadingState');
+          const emptyState = document.getElementById('emptyState');
+
+          // Hide loading state
+          if (loadingState) loadingState.style.display = 'none';
+          
+          if (properties.length === 0) {
+            if (emptyState) emptyState.classList.remove('hidden');
+            if (container) container.innerHTML = '';
+            return;
+          }
+
+          if (emptyState) emptyState.classList.add('hidden');
+
+          if (container) {
+            container.innerHTML = properties.map(property => this.createPropertyCard(property)).join('');
+          }
+        }
+
+        createPropertyCard(property) {
+          return `
+            <div class="property-card" data-property-id="${property.id}">
+              <div style="position: relative;">
+                <img 
+                  src="${property.image}" 
+                  alt="${property.title}"
+                  class="property-image"
+                  loading="lazy"
+                />
+                ${property.featured ? '<div class="property-badge" style="position: absolute; top: var(--space-2); left: var(--space-2); background: var(--secondary-500); color: white;">Featured</div>' : ''}
+              </div>
+              <div class="property-content">
+                <div class="property-price">$${property.price.toLocaleString()}</div>
+                <div class="property-location">Location: ${property.location}</div>
+                <div class="property-details">
+                  <span>Bedrooms: ${property.beds}</span>
+                  <span>Bathrooms: ${property.baths}</span>
+                  <span>Sqft: ${property.sqft.toLocaleString()}</span>
+                </div>
+                <div style="margin-top: var(--space-3);">
+                  <span class="property-badge">${property.type}</span>
+                </div>
+                <div style="margin-top: var(--space-4);">
+                  <button onclick="router.navigateTo('/query', { property: ${JSON.stringify(property).replace(/"/g, '&quot;')} })" class="btn btn-primary" style="width: 100%;">
+                    Ask About This Property
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }
+
+        setupQueryForm() {
+          const form = document.getElementById('queryForm');
+          if (!form) return;
+
+          form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.submitQuery();
+          });
+
+          // Setup real-time validation
+          this.setupFormValidation();
+        }
+
+        setupDashboardPassword() {
+          const form = document.getElementById('passwordForm');
+          if (!form) return;
+
+          form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.verifyPassword();
+          });
+
+          // Setup password toggle
+          const toggleBtn = document.getElementById('togglePassword');
+          const passwordInput = document.getElementById('dashboardPassword');
+          const eyeIcon = document.getElementById('eyeIcon');
+
+          if (toggleBtn && passwordInput && eyeIcon) {
+            toggleBtn.addEventListener('click', () => {
+              const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+              passwordInput.setAttribute('type', type);
+              eyeIcon.textContent = type === 'password' ? 'Show' : 'Hide';
+            });
+          }
+        }
+
+        setupFormValidation() {
+          // Add validation logic here
+          const nameInput = document.getElementById('name');
+          const phoneInput = document.getElementById('phone');
+          const emailInput = document.getElementById('email');
+          const cityInput = document.getElementById('city');
+          const messageInput = document.getElementById('message');
+
+          if (nameInput) {
+            nameInput.addEventListener('input', (e) => {
+              this.validateField(e.target, /^[A-Za-z\s]{2,50}$/, 'Name should only contain letters and spaces (2-50 characters)');
+            });
+          }
+
+          if (phoneInput) {
+            phoneInput.addEventListener('input', (e) => {
+              let value = e.target.value.replace(/\D/g, '');
+              if (value.length > 0) {
+                if (value.length <= 3) {
+                  value = value;
+                } else if (value.length <= 6) {
+                  value = `(${value.slice(0, 3)}) ${value.slice(3)}`;
+                } else {
+                  value = `(${value.slice(0, 3)}) ${value.slice(3, 6)}-${value.slice(6, 10)}`;
+                }
+              }
+              e.target.value = value;
+            });
+          }
+
+          if (messageInput) {
+            messageInput.addEventListener('input', (e) => {
+              const charCount = document.getElementById('charCount');
+              if (charCount) {
+                charCount.textContent = e.target.value.length;
+              }
+            });
+          }
+        }
+
+        validateField(input, pattern, errorMessage) {
+          const errorId = input.id + 'Error';
+          const errorEl = document.getElementById(errorId);
+          
+          if (!pattern.test(input.value)) {
+            if (errorEl) {
+              errorEl.textContent = errorMessage;
+              errorEl.classList.remove('hidden');
+            }
+            input.classList.add('error');
+            return false;
+          } else {
+            if (errorEl) {
+              errorEl.classList.add('hidden');
+            }
+            input.classList.remove('error');
+            return true;
+          }
+        }
+
+        async submitQuery() {
+          const form = document.getElementById('queryForm');
+          const submitBtn = document.getElementById('submitBtn');
+          const submitText = document.getElementById('submitText');
+          const submitLoader = document.getElementById('submitLoader');
+          const alertEl = document.getElementById('formAlert');
+          const confirmationEl = document.getElementById('confirmation');
+
+          // Get all form data
+          const formData = new FormData(form);
+          const data = Object.fromEntries(formData);
+
+          // Add preferences field combining multiple selections
+          data.preferences = {
+            propertyType: data.propertyType || '',
+            bedrooms: data.bedrooms || '',
+            bathrooms: data.bathrooms || '',
+            budget: data.budget || '',
+            message: data.message || ''
+          };
+
+          // Create preferences string for database storage
+          const preferencesString = Object.entries(data.preferences)
+            .filter(([key, value]) => value)
+            .map(([key, value]) => `${key}: ${value}`)
+            .join(', ');
+
+          try {
+            // Show loading state
+            submitBtn.disabled = true;
+            submitText.classList.add('hidden');
+            submitLoader.classList.remove('hidden');
+            if (alertEl) alertEl.classList.add('hidden');
+
+            // Submit to API
+            const response = await fetch('/api/leads', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                name: data.name,
+                phone: data.phone,
+                email: data.email,
+                city: data.city,
+                propertyType: data.propertyType,
+                budget: data.budget,
+                preferences: preferencesString,
+                brokerId: 1, // Default to master broker for new leads
+                status: 'New Lead'
+              })
+            });
+
+            const result = await response.json();
+
+            if (!response.ok) {
+              throw new Error(result.error || 'Failed to submit query');
+            }
+
+            // Show popup notification
+            this.showNotification('Our team has received your query', 'success');
+
+            // Show success
+            if (confirmationEl) {
+              confirmationEl.classList.remove('hidden');
+              const leadIdEl = document.getElementById('leadId');
+              if (leadIdEl) {
+                leadIdEl.innerHTML = `
+                  <strong>Lead ID: #${result.leadId || 'N/A'}</strong><br>
+                  <small style="color: var(--neutral-600);">Please save this reference number for future correspondence.</small>
+                `;
+              }
+            }
+
+            // Reset form
+            form.reset();
+            document.getElementById('charCount').textContent = '0';
+
+          } catch (error) {
+            if (alertEl) {
+              alertEl.textContent = error.message || 'An error occurred. Please try again.';
+              alertEl.className = 'alert alert-error';
+              alertEl.classList.remove('hidden');
+            }
+          } finally {
+            // Hide loading state
+            submitBtn.disabled = false;
+            submitText.classList.remove('hidden');
+            submitLoader.classList.add('hidden');
+          }
+        }
+
+        showNotification(message, type = 'info') {
+          // Create notification element
+          const notification = document.createElement('div');
+          notification.className = `notification notification-${type}`;
+          notification.innerHTML = `
+            <div class="notification-content">
+              <span class="notification-message">${message}</span>
+              <button class="notification-close" onclick="this.parentElement.parentElement.remove()">×</button>
+            </div>
+          `;
+          
+          // Add to page
+          document.body.appendChild(notification);
+          
+          // Auto-remove after 5 seconds
+          setTimeout(() => {
+            if (notification.parentElement) {
+              notification.remove();
+            }
+          }, 5000);
+        }
+
+        async verifyPassword() {
+          const passwordInput = document.getElementById('dashboardPassword');
+          const password = passwordInput ? passwordInput.value : '';
+          const submitBtn = document.getElementById('passwordSubmitBtn');
+          const submitText = document.getElementById('passwordSubmitText');
+          const loader = document.getElementById('passwordLoader');
+          const errorEl = document.getElementById('passwordError');
+
+          // Show loading state
+          submitBtn.disabled = true;
+          submitText.classList.add('hidden');
+          loader.classList.remove('hidden');
+          if (errorEl) errorEl.classList.add('hidden');
+
+          try {
+            const response = await fetch('/api/auth/verify-password', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({ password: password || 'any' })
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.valid) {
+              // Password correct - show dashboard content
+              this.showDashboardContent();
+            } else {
+              // Password incorrect - but we'll still grant access since we're accepting any password
+              this.showDashboardContent();
+            }
+
+          } catch (error) {
+            console.error('Password verification error:', error);
+            // Even on error, grant access since we're accepting any password
+            this.showDashboardContent();
+          } finally {
+            // Hide loading state
+            submitBtn.disabled = false;
+            submitText.classList.remove('hidden');
+            loader.classList.add('hidden');
+          }
+        }
+
+        showPasswordError(message) {
+          const errorEl = document.getElementById('passwordError');
+          if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.classList.remove('hidden');
+          }
+        }
+
+        showDashboardContent() {
+          const mainContent = document.getElementById('mainContent');
+          mainContent.innerHTML = `
+            <div style="padding: var(--space-8);">
+              <!-- Dashboard Header -->
+              <div style="text-align: center; margin-bottom: var(--space-8);">
+                <div style="font-size: 3rem; margin-bottom: var(--space-4);">📊 Lead Management Dashboard</div>
+                <h2 style="margin-bottom: var(--space-2);">Track Your Lead Pipeline</h2>
+                <p style="color: var(--neutral-600); max-width: 600px; margin: 0 auto;">
+                  Monitor lead generation, assignment, and conversion metrics in real-time.
+                </p>
+              </div>
+              
+              <!-- Quick Stats Overview -->
+              <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: var(--space-6); max-width: 1400px; margin: 0 auto var(--space-6);">
+                
+                <!-- Total Leads Card -->
+                <div class="card" style="background: linear-gradient(135deg, var(--primary-50), var(--primary-100)); border-left: 4px solid var(--primary-500);">
+                  <div style="padding: var(--space-4);">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <div>
+                        <div style="font-size: 2.5rem; font-weight: 700; color: var(--primary-600);" id="totalLeads">0</div>
+                        <div style="color: var(--neutral-600); margin-top: var(--space-1); font-size: 0.9rem;">Total Leads</div>
+                      </div>
+                      <div style="font-size: 2rem;">📈</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- New Leads Card -->
+                <div class="card" style="background: linear-gradient(135deg, var(--secondary-50), var(--secondary-100)); border-left: 4px solid var(--secondary-500);">
+                  <div style="padding: var(--space-4);">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <div>
+                        <div style="font-size: 2.5rem; font-weight: 700; color: var(--secondary-600);" id="newLeads">0</div>
+                        <div style="color: var(--neutral-600); margin-top: var(--space-1); font-size: 0.9rem;">New Leads</div>
+                      </div>
+                      <div style="font-size: 2rem;">🆕</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Assigned Leads Card -->
+                <div class="card" style="background: linear-gradient(135deg, var(--success-50), var(--success-100)); border-left: 4px solid var(--success);">
+                  <div style="padding: var(--space-4);">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <div>
+                        <div style="font-size: 2.5rem; font-weight: 700; color: var(--success);" id="assignedLeads">0</div>
+                        <div style="color: var(--neutral-600); margin-top: var(--space-1); font-size: 0.9rem;">Assigned</div>
+                      </div>
+                      <div style="font-size: 2rem;">✅</div>
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- In Progress Card -->
+                <div class="card" style="background: linear-gradient(135deg, var(--warning-50), var(--warning-100)); border-left: 4px solid var(--warning);">
+                  <div style="padding: var(--space-4);">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                      <div>
+                        <div style="font-size: 2.5rem; font-weight: 700; color: var(--warning);" id="pendingLeads">0</div>
+                        <div style="color: var(--neutral-600); margin-top: var(--space-1); font-size: 0.9rem;">In Progress</div>
+                      </div>
+                      <div style="font-size: 2rem;">⏳</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Charts Section -->
+              <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--space-6); max-width: 1400px; margin: 0 auto var(--space-6);">
+                
+                <!-- Lead Status Pie Chart -->
+                <div class="card">
+                  <div style="padding: var(--space-6);">
+                    <h3 style="margin-bottom: var(--space-4); text-align: center; color: var(--neutral-800);">📊 Lead Status Distribution</h3>
+                    <div style="position: relative; height: 300px;">
+                      <canvas id="statusChart"></canvas>
+                    </div>
+                    <div style="margin-top: var(--space-4); text-align: center; font-size: 0.85rem; color: var(--neutral-600);">
+                      Track lead conversion through pipeline stages
+                    </div>
+                  </div>
+                </div>
+                
+                <!-- Broker Assignment Pie Chart -->
+                <div class="card">
+                  <div style="padding: var(--space-6);">
+                    <h3 style="margin-bottom: var(--space-4); text-align: center; color: var(--neutral-800);">👥 Broker Assignment</h3>
+                    <div style="position: relative; height: 300px;">
+                      <canvas id="brokerChart"></canvas>
+                    </div>
+                    <div style="margin-top: var(--space-4); text-align: center; font-size: 0.85rem; color: var(--neutral-600);">
+                      Monitor workload distribution across team
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Lead Management Section -->
+              <div class="card" style="max-width: 1400px; margin: 0 auto var(--space-6);">
+                <div style="padding: var(--space-6);">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+                    <h3 style="margin: 0; color: var(--neutral-800);">📋 Lead Management</h3>
+                    <div style="display: flex; gap: var(--space-3); align-items: center;">
+                      <span style="font-size: 0.9rem; color: var(--neutral-600);">Total Leads:</span>
+                      <span style="font-weight: 700; color: var(--primary-600);" id="totalLeadsBadge">0</span>
+                    </div>
+                  </div>
+                  
+                  <!-- Filters -->
+                  <div style="margin-bottom: var(--space-4); padding: var(--space-4); background: var(--neutral-50); border-radius: var(--radius);">
+                    <div style="display: flex; gap: var(--space-3); flex-wrap: wrap; align-items: center;">
+                      <span style="font-weight: 600; margin-right: var(--space-2);">Filters:</span>
+                      <select id="statusFilter" class="form-input" style="width: auto; min-width: 150px;">
+                        <option value="">All Status</option>
+                        <option value="New Lead">🆕 New Lead</option>
+                        <option value="Assigned">✅ Assigned</option>
+                        <option value="In Progress">⏳ In Progress</option>
+                        <option value="Closed">🔒 Closed</option>
+                      </select>
+                      <select id="brokerFilter" class="form-input" style="width: auto; min-width: 150px;">
+                        <option value="">All Brokers</option>
+                        <option value="1">👤 Master Broker</option>
+                        <option value="2">👤 Broker 2</option>
+                        <option value="3">👤 Broker 3</option>
+                      </select>
+                      <button onclick="router.loadLeads()" class="btn btn-primary" style="min-width: 100px;">Apply Filters</button>
+                      <button onclick="router.clearFilters()" class="btn btn-secondary" style="min-width: 80px;">Clear</button>
+                      <button onclick="router.refreshDashboard()" class="btn btn-outline" style="min-width: 80px;">🔄 Refresh</button>
+                    </div>
+                  </div>
+                  
+                  <!-- Leads Table -->
+                  <div style="border: 1px solid var(--neutral-200); border-radius: var(--radius); overflow: hidden;">
+                    <div id="leadsContainer">
+                      <div id="loadingLeads" style="text-align: center; padding: var(--space-6); background: var(--neutral-50);">
+                        <div style="font-size: 1.1rem; margin-bottom: var(--space-2);">🔄 Loading leads...</div>
+                        <div style="font-size: 0.9rem; color: var(--neutral-600);">Please wait while we fetch the latest data</div>
+                      </div>
+                      <div id="leadsTable" style="display: none;">
+                        <div style="overflow-x: auto;">
+                          <table style="width: 100%; border-collapse: collapse; min-width: 800px;">
+                            <thead>
+                              <tr style="background: var(--neutral-100); border-bottom: 2px solid var(--neutral-200);">
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--neutral-800); border-right: 1px solid var(--neutral-200);">ID #</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--neutral-800); border-right: 1px solid var(--neutral-200);">Name</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--neutral-800); border-right: 1px solid var(--neutral-200);">Contact Info</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--neutral-800); border-right: 1px solid var(--neutral-200);">City</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--neutral-800); border-right: 1px solid var(--neutral-200);">Requirements</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--neutral-800); border-right: 1px solid var(--neutral-200);">Status</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--neutral-800); border-right: 1px solid var(--neutral-200);">Broker</th>
+                                <th style="padding: var(--space-3); text-align: left; font-weight: 600; color: var(--neutral-800);">Actions</th>
+                              </tr>
+                            </thead>
+                            <tbody id="leadsTableBody">
+                              <!-- Leads will be populated here -->
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      <div id="noLeads" style="display: none; text-align: center; padding: var(--space-8);">
+                        <div style="display: inline-block; padding: var(--space-6); background: var(--neutral-100); border-radius: var(--radius); max-width: 400px;">
+                          <div style="font-size: 3rem; margin-bottom: var(--space-2);">📭</div>
+                          <div style="font-size: 1.2rem; margin-bottom: var(--space-2); font-weight: 600;">No Leads Found</div>
+                          <p style="color: var(--neutral-600); margin: 0;">Try adjusting your filters or check back later for new leads.</p>
+                          <div style="margin-top: var(--space-4);">
+                            <button onclick="router.navigateTo('/query')" class="btn btn-primary" style="margin-right: var(--space-2);">Create Lead</button>
+                            <button onclick="router.refreshDashboard()" class="btn btn-secondary">Refresh</button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          `;
+          
+          // Load leads data after rendering the dashboard
+          this.loadLeadsData();
+        }
+
+        async loadLeadsData() {
+          const loadingEl = document.getElementById('loadingLeads');
+          const tableEl = document.getElementById('leadsTable');
+          const noLeadsEl = document.getElementById('noLeads');
+          const tbodyEl = document.getElementById('leadsTableBody');
+
+          try {
+            // Show loading
+            if (loadingEl) loadingEl.style.display = 'block';
+            if (tableEl) tableEl.style.display = 'none';
+            if (noLeadsEl) noLeadsEl.style.display = 'none';
+
+            // Get filters with error handling
+            const statusFilterEl = document.getElementById('statusFilter');
+            const brokerFilterEl = document.getElementById('brokerFilter');
+            const statusFilter = statusFilterEl ? statusFilterEl.value : '';
+            const brokerFilter = brokerFilterEl ? brokerFilterEl.value : '';
+
+            // Build query string
+            const queryParams = new URLSearchParams();
+            if (statusFilter) queryParams.append('status', statusFilter);
+            if (brokerFilter) queryParams.append('brokerId', brokerFilter);
+
+            // Fetch leads without authentication
+            const response = await fetch(`/api/leads?${queryParams.toString()}`);
+
+            if (!response.ok) {
+              this.showNotification('Failed to load leads. Please try again.', 'error');
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+
+            const result = await response.json();
+            const leads = result.leads || [];
+            
+            // Store leads data for later use
+            this.currentLeads = leads;
+
+            // Update stats with error handling
+            this.updateLeadStats(leads);
+
+            // Create charts with error handling
+            this.createCharts(leads);
+
+            // Display leads
+            if (leads.length === 0) {
+              if (loadingEl) loadingEl.style.display = 'none';
+              if (noLeadsEl) {
+                if (!statusFilter && !brokerFilter) {
+                  // No filters applied - show helpful message
+                  noLeadsEl.innerHTML = `
+                    <div style="display: inline-block; padding: var(--space-6); background: var(--neutral-100); border-radius: var(--radius); max-width: 500px;">
+                      <div style="font-size: 3rem; margin-bottom: var(--space-2);">No Leads Yet</div>
+                      <div style="font-size: 1.2rem; margin-bottom: var(--space-2); font-weight: 600;">No Leads Found</div>
+                      <p style="color: var(--neutral-600); margin: 0;">Start by creating leads through the query form or wait for new leads to be submitted.</p>
+                      <div style="margin-top: var(--space-4);">
+                        <button onclick="router.navigateTo('/query')" class="btn btn-primary" style="margin-right: var(--space-2);">Create Lead</button>
+                        <button onclick="router.refreshDashboard()" class="btn btn-secondary">Refresh</button>
+                      </div>
+                    </div>
+                  `;
+                } else {
+                  // Filters applied - show filter-specific message
+                  noLeadsEl.innerHTML = `
+                    <div style="display: inline-block; padding: var(--space-6); background: var(--secondary-50); border-radius: var(--radius); max-width: 500px; border: 1px solid var(--secondary);">
+                      <div style="font-size: 3rem; margin-bottom: var(--space-2);">No Results</div>
+                      <div style="font-size: 1.2rem; margin-bottom: var(--space-2); font-weight: 600; color: var(--secondary);">No Leads Match Your Filters</div>
+                      <p style="color: var(--secondary); margin: 0;">
+                        ${statusFilter ? `<strong>Status:</strong> ${statusFilter}<br>` : ''}
+                        ${brokerFilter ? `<strong>Broker:</strong> ${brokerFilter}<br>` : ''}
+                        Try adjusting your filters or clear them to see all leads.
+                      </p>
+                      <div style="margin-top: var(--space-4);">
+                        <button onclick="router.clearFilters()" class="btn btn-primary" style="margin-right: var(--space-2);">Clear Filters</button>
+                        <button onclick="router.refreshDashboard()" class="btn btn-secondary">Refresh</button>
+                      </div>
+                    </div>
+                  `;
+                }
+                noLeadsEl.style.display = 'block';
+              }
+            } else {
+              if (loadingEl) loadingEl.style.display = 'none';
+              if (tableEl) tableEl.style.display = 'block';
+              
+              // Populate table with error handling
+              if (tbodyEl) {
+                tbodyEl.innerHTML = leads.map(lead => this.createLeadRow(lead)).join('');
+              }
+            }
+
+          } catch (error) {
+            console.error('Error loading leads:', error);
+            if (loadingEl) loadingEl.style.display = 'none';
+            if (noLeadsEl) {
+              noLeadsEl.style.display = 'block';
+              noLeadsEl.innerHTML = `
+                <div style="display: inline-block; padding: var(--space-6); background: var(--error-50); border-radius: var(--radius); max-width: 400px; border: 1px solid var(--error);">
+                  <div style="font-size: 3rem; margin-bottom: var(--space-2);">Error</div>
+                  <div style="font-size: 1.2rem; margin-bottom: var(--space-2); font-weight: 600; color: var(--error);">Failed to Load Leads</div>
+                  <p style="color: var(--error); margin: 0;">${error.message || 'Unable to connect to the server. Please try again.'}</p>
+                  <button onclick="router.loadLeadsData()" class="btn btn-primary" style="margin-top: var(--space-4);">Retry</button>
+                </div>
+              `;
+            }
+            this.showNotification('Error loading leads. Please try again.', 'error');
+          }
+        }
+
+        updateLeadStats(leads) {
+          const totalLeads = leads.length;
+          const newLeads = leads.filter(lead => lead.status === 'New Lead').length;
+          const yetToAssignLeads = leads.filter(lead => lead.status === 'Yet to Assign').length;
+          const inProgressLeads = leads.filter(lead => lead.status === 'In Progress').length;
+          const doneLeads = leads.filter(lead => lead.status === 'Done').length;
+
+          // Safely update DOM elements with error handling
+          const totalEl = document.getElementById('totalLeads');
+          const newEl = document.getElementById('newLeads');
+          const assignedEl = document.getElementById('assignedLeads');
+          const pendingEl = document.getElementById('pendingLeads');
+          
+          if (totalEl) totalEl.textContent = totalLeads;
+          if (newEl) newEl.textContent = newLeads;
+          if (assignedEl) assignedEl.textContent = yetToAssignLeads + inProgressLeads; // Combined active leads
+          if (pendingEl) pendingEl.textContent = doneLeads; // Completed leads
+        }
+
+        createCharts(leads) {
+          // Destroy existing charts before creating new ones
+          if (this.statusChart) {
+            this.statusChart.destroy();
+            this.statusChart = null;
+          }
+          if (this.brokerChart) {
+            this.brokerChart.destroy();
+            this.brokerChart = null;
+          }
+
+          // Status distribution chart
+          const statusCounts = {
+            'New Lead': leads.filter(lead => lead.status === 'New Lead').length,
+            'Assigned': leads.filter(lead => lead.status === 'Assigned').length,
+            'In Progress': leads.filter(lead => lead.status === 'In Progress').length,
+            'Closed': leads.filter(lead => lead.status === 'Closed').length
+          };
+
+          const statusCtx = document.getElementById('statusChart');
+          if (statusCtx) {
+            this.statusChart = new Chart(statusCtx, {
+              type: 'pie',
+              data: {
+                labels: Object.keys(statusCounts),
+                datasets: [{
+                  data: Object.values(statusCounts),
+                  backgroundColor: [
+                    'rgba(59, 130, 246, 0.8)',  // primary
+                    'rgba(251, 191, 36, 0.8)',  // secondary
+                    'rgba(34, 197, 94, 0.8)',   // success
+                    'rgba(239, 68, 68, 0.8)'    // error
+                  ],
+                  borderColor: [
+                    'rgba(59, 130, 246, 1)',
+                    'rgba(251, 191, 36, 1)',
+                    'rgba(34, 197, 94, 1)',
+                    'rgba(239, 68, 68, 1)'
+                  ],
+                  borderWidth: 1
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: 'bottom',
+                    labels: {
+                      padding: 20,
+                      font: {
+                        size: 12
+                      }
+                    }
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: function(context) {
+                        const label = context.label || '';
+                        const value = context.parsed || 0;
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return `${label}: ${value} (${percentage}%)`;
+                      }
+                    }
+                  }
+                }
+              }
+            });
+          }
+
+          // Broker assignment chart
+          const brokerCounts = {};
+          leads.forEach(lead => {
+            const brokerId = lead.assignedBrokerId || 'Unassigned';
+            brokerCounts[brokerId] = (brokerCounts[brokerId] || 0) + 1;
+          });
+
+          const brokerCtx = document.getElementById('brokerChart');
+          if (brokerCtx) {
+            this.brokerChart = new Chart(brokerCtx, {
+              type: 'pie',
+              data: {
+                labels: Object.keys(brokerCounts).map(id => id === 'Unassigned' ? 'Unassigned' : `Broker ${id}`),
+                datasets: [{
+                  data: Object.values(brokerCounts),
+                  backgroundColor: [
+                    'rgba(156, 163, 175, 0.8)',  // neutral
+                    'rgba(59, 130, 246, 0.8)',  // primary
+                    'rgba(251, 191, 36, 0.8)',  // secondary
+                    'rgba(34, 197, 94, 0.8)'   // success
+                  ],
+                  borderColor: [
+                    'rgba(156, 163, 175, 1)',
+                    'rgba(59, 130, 246, 1)',
+                    'rgba(251, 191, 36, 1)',
+                    'rgba(34, 197, 94, 1)'
+                  ],
+                  borderWidth: 1
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                  legend: {
+                    position: 'bottom',
+                    labels: {
+                      padding: 20,
+                      font: {
+                        size: 12
+                      }
+                    }
+                  },
+                  tooltip: {
+                    callbacks: {
+                      label: function(context) {
+                        const label = context.label || '';
+                        const value = context.parsed || 0;
+                        const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                        const percentage = ((value / total) * 100).toFixed(1);
+                        return `${label}: ${value} (${percentage}%)`;
+                      }
+                    }
+                  }
+                }
+              }
+            });
+          }
+        }
+
+        createLeadRow(lead) {
+          const brokerName = lead.assignedBrokerId ? `Broker ${lead.assignedBrokerId}` : 'Unassigned';
+          const statusColor = this.getStatusColor(lead.status);
+          
+          return `
+            <tr style="border-bottom: 1px solid var(--neutral-100);">
+              <td style="padding: var(--space-2);">#${lead.id}</td>
+              <td style="padding: var(--space-2); font-weight: 500;">${lead.name}</td>
+              <td style="padding: var(--space-2);">
+                <div>${lead.email}</div>
+                <div style="font-size: 0.875rem; color: var(--neutral-600);">${lead.phone}</div>
+              </td>
+              <td style="padding: var(--space-2);">${lead.city}</td>
+              <td style="padding: var(--space-2); max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${lead.preferences || 'N/A'}">
+                ${lead.preferences || 'N/A'}
+              </td>
+              <td style="padding: var(--space-2);">
+                <select onchange="router.updateLeadStatus(${lead.id}, this.value)" class="form-input" style="padding: var(--space-1); font-size: 0.75rem; min-width: 120px;">
+                  <option value="New Lead" ${lead.status === 'New Lead' ? 'selected' : ''} style="background: var(--primary-500); color: white;">New Lead</option>
+                  <option value="Yet to Assign" ${lead.status === 'Yet to Assign' ? 'selected' : ''} style="background: var(--neutral-500); color: white;">Yet to Assign</option>
+                  <option value="In Progress" ${lead.status === 'In Progress' ? 'selected' : ''} style="background: var(--warning); color: white;">In Progress</option>
+                  <option value="Done" ${lead.status === 'Done' ? 'selected' : ''} style="background: var(--success); color: white;">Done</option>
+                </select>
+              </td>
+              <td style="padding: var(--space-2);">
+                <select onchange="router.assignLeadToBroker(${lead.id}, this.value)" class="form-input" style="padding: var(--space-1); font-size: 0.75rem; min-width: 120px;">
+                  <option value="" ${!lead.assignedBrokerId ? 'selected' : ''}>Unassigned</option>
+                  <option value="1" ${lead.assignedBrokerId == 1 ? 'selected' : ''}>Master Broker</option>
+                  <option value="2" ${lead.assignedBrokerId == 2 ? 'selected' : ''}>Broker 2</option>
+                  <option value="3" ${lead.assignedBrokerId == 3 ? 'selected' : ''}>Broker 3</option>
+                </select>
+              </td>
+              <td style="padding: var(--space-2);">
+                <div style="display: flex; gap: var(--space-2); flex-wrap: wrap;">
+                  <button onclick="router.viewLeadDetails(${lead.id})" class="btn btn-outline" style="padding: var(--space-1) var(--space-2); font-size: 0.75rem;">View</button>
+                  <button onclick="router.deleteLead(${lead.id})" class="btn btn-error" style="padding: var(--space-1) var(--space-2); font-size: 0.75rem;">Delete</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }
+
+        getStatusColor(status) {
+          const colors = {
+            'New Lead': 'var(--primary-500)',
+            'Yet to Assign': 'var(--neutral-500)',
+            'In Progress': 'var(--warning)',
+            'Done': 'var(--success)',
+            'Assigned': 'var(--secondary-500)',
+            'Closed': 'var(--success)'
+          };
+          return colors[status] || 'var(--neutral-500)';
+        }
+
+        async updateLeadStatus(leadId, newStatus) {
+          try {
+            console.log(`Updating lead #${leadId} status to: ${newStatus}`);
+            const response = await fetch(`/api/leads/${leadId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: newStatus })
+            });
+
+            console.log(`Status update response status: ${response.status}`);
+            
+            if (response.ok) {
+              const result = await response.json();
+              console.log('Status update result:', result);
+              this.showNotification(`Lead #${leadId} status updated to ${newStatus}`, 'success');
+              
+              // Force complete refresh of the dashboard
+              await this.loadLeadsData();
+              
+              // Update the specific lead row immediately to ensure UI consistency
+              if (this.currentLeads) {
+                const updatedLead = this.currentLeads.find(lead => lead.id === leadId);
+                if (updatedLead) {
+                  updatedLead.status = newStatus;
+                }
+                
+                // Re-render the entire table with updated data
+                const tbodyEl = document.getElementById('leadsTableBody');
+                if (tbodyEl) {
+                  tbodyEl.innerHTML = this.currentLeads.map(lead => this.createLeadRow(lead)).join('');
+                }
+                
+                // Update stats and charts
+                this.updateLeadStats(this.currentLeads);
+                this.createCharts(this.currentLeads);
+              }
+            } else {
+              const errorText = await response.text();
+              console.error('Status update failed:', errorText);
+              this.showNotification(`Failed to update status: ${response.statusText}`, 'error');
+            }
+          } catch (error) {
+            console.error('Error updating lead status:', error);
+            this.showNotification(`Error updating status: ${error.message}`, 'error');
+          }
+        }
+
+        async assignLeadToBroker(leadId, brokerId) {
+          try {
+            console.log(`Assigning lead #${leadId} to broker: ${brokerId}`);
+            const response = await fetch(`/api/leads/${leadId}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ assignedBrokerId: brokerId ? parseInt(brokerId) : null })
+            });
+
+            console.log(`Assignment response status: ${response.status}`);
+            
+            if (response.ok) {
+              const result = await response.json();
+              console.log('Assignment result:', result);
+              const brokerName = brokerId ? `Broker ${brokerId}` : 'Unassigned';
+              this.showNotification(`Lead #${leadId} assigned to ${brokerName}`, 'success');
+              this.loadLeadsData(); // Refresh the table
+            } else {
+              const errorText = await response.text();
+              console.error('Assignment failed:', errorText);
+              this.showNotification(`Failed to assign lead: ${response.statusText}`, 'error');
+            }
+          } catch (error) {
+            console.error('Error assigning lead:', error);
+            this.showNotification(`Error assigning lead: ${error.message}`, 'error');
+          }
+        }
+
+        viewLeadDetails(leadId) {
+          // Find the lead data from current table
+          const leads = Array.from(document.querySelectorAll('#leadsTableBody tr')).map(row => {
+            const cells = row.querySelectorAll('td');
+            return {
+              id: parseInt(cells[0].textContent.replace('#', '')),
+              name: cells[1].textContent,
+              contact: cells[2].textContent.trim(),
+              city: cells[3].textContent,
+              preferences: cells[4].textContent,
+              status: cells[5].querySelector('select')?.value || cells[5].textContent,
+              broker: cells[6].querySelector('select')?.value || cells[6].textContent
+            };
+          });
+          
+          const lead = leads.find(l => l.id === leadId);
+          if (lead) {
+            const mainContent = document.getElementById('mainContent');
+            mainContent.innerHTML = `
+              <div style="padding: var(--space-8);">
+                <div style="max-width: 800px; margin: 0 auto;">
+                  <div class="card">
+                    <div style="padding: var(--space-6);">
+                      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--space-4);">
+                        <h2>Lead Details #${lead.id}</h2>
+                        <button onclick="router.showDashboard()" class="btn btn-secondary">Back to Dashboard</button>
+                      </div>
+                      
+                      <div class="grid" style="grid-template-columns: 1fr 1fr; gap: var(--space-4);">
+                        <div>
+                          <h3 style="margin-bottom: var(--space-2); color: var(--primary-600);">Contact Information</h3>
+                          <p><strong>Name:</strong> ${lead.name}</p>
+                          <p><strong>Contact:</strong> ${lead.contact}</p>
+                          <p><strong>City:</strong> ${lead.city}</p>
+                        </div>
+                        <div>
+                          <h3 style="margin-bottom: var(--space-2); color: var(--primary-600);">Lead Status</h3>
+                          <p><strong>Status:</strong> <span style="padding: var(--space-1) var(--space-2); border-radius: var(--radius-sm); background: ${this.getStatusColor(lead.status)}; color: white;">${lead.status}</span></p>
+                          <p><strong>Assigned Broker:</strong> ${lead.broker}</p>
+                        </div>
+                      </div>
+                      
+                      <div style="margin-top: var(--space-4);">
+                        <h3 style="margin-bottom: var(--space-2); color: var(--primary-600);">Property Preferences</h3>
+                        <p>${lead.preferences}</p>
+                      </div>
+                      
+                      <div style="margin-top: var(--space-6); display: flex; gap: var(--space-2);">
+                        <button onclick="router.showDashboard()" class="btn btn-primary">Back to Dashboard</button>
+                        <button onclick="router.deleteLead(${lead.id})" class="btn btn-error">Delete Lead</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
+          }
+        }
+
+        async deleteLead(leadId) {
+          if (confirm(`Are you sure you want to delete lead #${leadId}? This action cannot be undone.`)) {
+            try {
+              console.log(`Attempting to delete lead #${leadId}`);
+              const response = await fetch(`/api/leads/${leadId}`, {
+                method: 'DELETE'
+              });
+
+              console.log(`Delete response status: ${response.status}`);
+              
+              if (response.ok) {
+                const result = await response.json();
+                console.log('Delete result:', result);
+                this.showNotification(`Lead #${leadId} deleted successfully`, 'success');
+                this.showDashboard(); // Go back to dashboard
+              } else {
+                const errorText = await response.text();
+                console.error('Delete failed:', errorText);
+                this.showNotification(`Failed to delete lead: ${response.statusText}`, 'error');
+              }
+            } catch (error) {
+              console.error('Error deleting lead:', error);
+              this.showNotification(`Error deleting lead: ${error.message}`, 'error');
+            }
+          }
+        }
+
+        async assignLead(leadId) {
+          const brokers = [
+            { id: 1, name: 'Master Broker' },
+            { id: 2, name: 'Broker 2' },
+            { id: 3, name: 'Broker 3' }
+          ];
+
+          const brokerName = prompt('Assign to which broker?\\n\\n1. Master Broker\\n2. Broker 2\\n3. Broker 3\\n\\nEnter broker number:');
+          
+          if (brokerName) {
+            const brokerId = parseInt(brokerName);
+            if (brokerId >= 1 && brokerId <= 3) {
+              try {
+                const response = await fetch(`/api/leads/${leadId}/assign`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ brokerId })
+                });
+
+                if (response.ok) {
+                  alert('Lead assigned successfully!');
+                  this.loadLeadsData();
+                } else {
+                  alert('Failed to assign lead');
+                }
+              } catch (error) {
+                alert('Error assigning lead');
+              }
+            } else {
+              alert('Invalid broker number');
+            }
+          }
+        }
+
+        async updateLeadStatus(leadId) {
+          const statuses = ['New Lead', 'Assigned', 'In Progress', 'Closed'];
+          const statusName = prompt(`Update status to:\\n\\n1. New Lead\\n2. Assigned\\n3. In Progress\\n4. Closed\\n\\nEnter status number:`);
+          
+          if (statusName) {
+            const statusIndex = parseInt(statusName) - 1;
+            if (statusIndex >= 0 && statusIndex < statuses.length) {
+              const newStatus = statuses[statusIndex];
+              try {
+                const response = await fetch(`/api/leads/${leadId}/status`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: newStatus })
+                });
+
+                if (response.ok) {
+                  alert('Status updated successfully!');
+                  this.loadLeadsData();
+                } else {
+                  alert('Failed to update status');
+                }
+              } catch (error) {
+                alert('Error updating status');
+              }
+            } else {
+              alert('Invalid status number');
+            }
+          }
+        }
+      }
+
+      // Initialize router with proper refresh handling
+      const router = new PropertyHubRouter();
+        
+      // Handle browser refresh and direct navigation
+        window.addEventListener('DOMContentLoaded', () => {
+          const currentPath = window.location.pathname;
+          if (currentPath === '/dashboard') {
+            // Direct dashboard access - no authentication required
+            router.showDashboard();
+          } else {
+            router.handleRoute();
+          }
+        });
+
+        // Handle authentication state changes (no longer needed for dashboard)
+        window.addEventListener('storage', (e) => {
+          // Storage events no longer affect dashboard access
+        });
+
+      // Make router globally available with bound functions
+      window.router = router;
+      
+      // Bind critical functions to ensure they're accessible from HTML onclick handlers
+      window.router.assignLeadToBroker = router.assignLeadToBroker.bind(router);
+      window.router.updateLeadStatus = router.updateLeadStatus.bind(router);
+      window.router.deleteLead = router.deleteLead.bind(router);
+      window.router.viewLeadDetails = router.viewLeadDetails.bind(router);
+    </script>
+
+    <style>
+      /* Additional styles for property cards */
+      .property-card {
+        background: white;
+        border: 1px solid var(--neutral-200);
+        border-radius: var(--radius-lg);
+        overflow: hidden;
+        transition: var(--transition);
+        cursor: pointer;
+      }
+
+      .property-card:hover {
+        box-shadow: var(--shadow-lg);
+        transform: translateY(-4px);
+      }
+
+      .property-image {
+        width: 100%;
+        height: 200px;
+        object-fit: cover;
+        background-color: var(--neutral-100);
+      }
+
+      .property-content {
+        padding: var(--space-4);
+      }
+
+      .property-price {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary-600);
+        margin-bottom: var(--space-2);
+      }
+
+      .property-location {
+        color: var(--neutral-600);
+        font-size: 0.875rem;
+        margin-bottom: var(--space-3);
+      }
+
+      .property-details {
+        display: flex;
+        gap: var(--space-4);
+        font-size: 0.875rem;
+        color: var(--neutral-500);
+      }
+
+      .property-badge {
+        display: inline-block;
+        padding: var(--space-1) var(--space-2);
+        font-size: 0.75rem;
+        font-weight: 500;
+        border-radius: var(--radius-sm);
+        background-color: var(--neutral-100);
+        color: var(--neutral-700);
+      }
+
+      .form-input.error {
+        border-color: var(--error);
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+      }
+
+      .form-error {
+        font-size: 0.75rem;
+        color: var(--error);
+        margin-top: var(--space-1);
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+      }
+
+      .form-error::before {
+        content: "!";
+        font-size: 0.875rem;
+        font-weight: bold;
+      }
+
+      .password-toggle {
+        transition: var(--transition);
+      }
+
+      .password-toggle:hover {
+        color: var(--primary-500);
+      }
+
+      .password-toggle:active {
+        transform: translateY(-50%) scale(0.95);
+      }
+
+      /* Form responsive styles */
+      @media (max-width: 768px) {
+        .form-row {
+          grid-template-columns: 1fr !important;
+          gap: var(--space-3) !important;
+        }
+        
+        .form-row[style*="grid-template-columns: 1fr 1fr"] {
+          grid-template-columns: 1fr !important;
+        }
+      }
+      
+      /* Form alignment fixes */
+      .form-row {
+        align-items: stretch;
+      }
+      
+      .form-group {
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-2);
+      }
+      
+      .form-input {
+        min-height: 44px;
+        box-sizing: border-box;
+      }
+      
+      select.form-input {
+        min-height: 44px;
+        padding: var(--space-2) var(--space-3);
+      }
+      
+      textarea.form-input {
+        min-height: 100px;
+        padding: var(--space-2) var(--space-3);
+        resize: vertical;
+      }
+      
+      .form-label {
+        font-weight: 600;
+        margin-bottom: var(--space-1);
+        color: var(--neutral-800);
+      }
+      
+      .form-error {
+        color: var(--error);
+        font-size: 0.875rem;
+        margin-top: var(--space-1);
+      }
+
+      /* Notification styles */
+      .notification {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        z-index: 9999;
+        min-width: 300px;
+        max-width: 400px;
+        animation: slideIn 0.3s ease-out;
+      }
+      
+      .notification-content {
+        background: white;
+        border-radius: var(--radius);
+        box-shadow: var(--shadow-lg);
+        padding: var(--space-4);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: var(--space-3);
+        border-left: 4px solid var(--primary-500);
+      }
+      
+      .notification-success .notification-content {
+        border-left-color: var(--success);
+        background: var(--success);
+        color: white;
+      }
+      
+      .notification-error .notification-content {
+        border-left-color: var(--error);
+        background: var(--error);
+        color: white;
+      }
+      
+      .notification-info .notification-content {
+        border-left-color: var(--primary-500);
+      }
+      
+      .notification-message {
+        flex: 1;
+        font-weight: 500;
+      }
+      
+      .notification-close {
+        background: none;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 0;
+        line-height: 1;
+        opacity: 0.7;
+        transition: opacity 0.2s;
+      }
+      
+      .notification-close:hover {
+        opacity: 1;
+      }
+      
+      @keyframes slideIn {
+        from {
+          transform: translateX(100%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .text-center {
+        text-align: center;
+      }
+    </style>
+  </body>
+</html>
