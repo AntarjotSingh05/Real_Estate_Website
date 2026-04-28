@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PropertyHub - AI-Powered Property Management Platform</title>
+  <link rel="stylesheet" href="styles-new.css">
+  <style>
+    /* Landing Page Specific Styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    /* Hero Section */
+    .hero {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 4rem 2rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(circle at 20% 50%, rgba(59, 130, 246, 0.1) 0%, transparent 50%),
+                  radial-gradient(circle at 80% 50%, rgba(168, 85, 247, 0.1) 0%, transparent 50%);
+      pointer-events: none;
+    }
+
+    .hero-content {
+      max-width: 1200px;
+      z-index: 1;
+      animation: fadeInUp 1s ease;
+    }
+
+    .hero h1 {
+      font-size: 4rem;
+      font-weight: 800;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #3b82f6, #60a5fa, #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 1.5rem;
+      color: var(--text-muted);
+      margin-bottom: 2.5rem;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero-cta {
+      display: inline-block;
+      padding: 1rem 2.5rem;
+      background: linear-gradient(135deg, #3b82f6, #60a5fa);
+      color: white;
+      border: none;
+      border-radius: 50px;
+      font-size: 1.125rem;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      box-shadow: 0 10px 40px rgba(59, 130, 246, 0.4);
+      transition: all 0.3s ease;
+    }
+
+    .hero-cta:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 15px 50px rgba(59, 130, 246, 0.5);
+    }
+
+    /* Section Styles */
+    .section {
+      padding: 6rem 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      text-align: center;
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #3b82f6, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .section-subtitle {
+      text-align: center;
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      margin-bottom: 4rem;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Features Grid */
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+
+    .feature-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #3b82f6, #60a5fa);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .feature-card:hover {
+      transform: translateY(-10px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+
+    .feature-card:hover::before {
+      opacity: 1;
+    }
+
+    .feature-icon {
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #3b82f6, #60a5fa);
+      border-radius: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 20px rgba(59, 130, 246, 0.3);
+    }
+
+    .feature-card h3 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+      color: var(--text);
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+
+    /* Value Props */
+    .value-props {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+      text-align: center;
+    }
+
+    .value-prop {
+      padding: 2rem;
+      background: rgba(30, 41, 59, 0.5);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      transition: all 0.3s ease;
+    }
+
+    .value-prop:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+    }
+
+    .value-prop h3 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #3b82f6, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .value-prop p {
+      color: var(--text-muted);
+      font-size: 1.125rem;
+    }
+
+    /* How It Works */
+    .steps-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 2rem;
+      position: relative;
+    }
+
+    .steps-container::before {
+      content: '';
+      position: absolute;
+      top: 40px;
+      left: 10%;
+      right: 10%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--border), transparent);
+    }
+
+    .step {
+      flex: 1;
+      text-align: center;
+      position: relative;
+      z-index: 1;
+    }
+
+    .step-number {
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, #3b82f6, #60a5fa);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      font-weight: 700;
+      color: white;
+      margin: 0 auto 1.5rem;
+      box-shadow: 0 10px 30px rgba(59, 130, 246, 0.4);
+    }
+
+    .step h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    .step p {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    /* Trust Section */
+    .trust-section {
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.5), rgba(30, 41, 59, 0.5));
+      border-radius: 30px;
+      padding: 4rem;
+      margin: 4rem 2rem;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 2rem;
+      margin-bottom: 4rem;
+    }
+
+    .stat-card {
+      text-align: center;
+      padding: 2rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    .stat-number {
+      font-size: 3rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #3b82f6, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 1rem;
+    }
+
+    .testimonials {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 2rem;
+    }
+
+    .testimonial-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      position: relative;
+    }
+
+    .testimonial-card::before {
+      content: '"';
+      position: absolute;
+      top: 1rem;
+      left: 1.5rem;
+      font-size: 4rem;
+      color: var(--primary-500);
+      opacity: 0.3;
+      font-family: Georgia, serif;
+    }
+
+    .testimonial-text {
+      color: var(--text);
+      line-height: 1.6;
+      margin-bottom: 1.5rem;
+      font-style: italic;
+    }
+
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .testimonial-avatar {
+      width: 50px;
+      height: 50px;
+      background: linear-gradient(135deg, #3b82f6, #60a5fa);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      color: white;
+    }
+
+    .testimonial-name {
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .testimonial-role {
+      color: var(--text-muted);
+      font-size: 0.875rem;
+    }
+
+    /* Final CTA */
+    .final-cta {
+      text-align: center;
+      padding: 6rem 2rem;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(168, 85, 247, 0.1));
+      border-radius: 30px;
+      margin: 4rem 2rem;
+    }
+
+    .final-cta h2 {
+      font-size: 3rem;
+      font-weight: 800;
+      margin-bottom: 1.5rem;
+      background: linear-gradient(135deg, #3b82f6, #60a5fa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .final-cta p {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      margin-bottom: 2.5rem;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .hero h1 {
+        font-size: 2.5rem;
+      }
+
+      .hero p {
+        font-size: 1.125rem;
+      }
+
+      .value-props {
+        grid-template-columns: 1fr;
+      }
+
+      .steps-container {
+        flex-direction: column;
+      }
+
+      .steps-container::before {
+        display: none;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .testimonials {
+        grid-template-columns: 1fr;
+      }
+
+      .final-cta h2 {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="hero-content">
+      <h1>Transform Your Property Management with AI</h1>
+      <p>Automate lead generation, qualification, and booking with our intelligent platform. Close more deals in less time.</p>
+      <a href="#demo" class="hero-cta">Book a Demo</a>
+    </div>
+  </section>
+
+  <!-- Features Grid -->
+  <section class="section">
+    <h2 class="section-title">Powerful Features</h2>
+    <p class="section-subtitle">Everything you need to manage properties and convert leads efficiently</p>
+    
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">🤖</div>
+        <h3>AI Chat Assistant</h3>
+        <p>24/7 intelligent chatbot that engages visitors, answers questions, and captures leads automatically.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">📊</div>
+        <h3>Lead Dashboard</h3>
+        <p>Centralized dashboard to track, manage, and nurture all your property leads in one place.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">🔄</div>
+        <h3>Auto Follow-up</h3>
+        <p>Automated follow-up sequences that keep leads engaged and move them through your pipeline.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">📅</div>
+        <h3>Booking System</h3>
+        <p>Seamless appointment scheduling with integrated calendar and automated reminders.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">🎯</div>
+        <h3>Smart Qualification</h3>
+        <p>AI-powered lead scoring and qualification to focus on high-value prospects.</p>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-icon">📈</div>
+        <h3>Analytics & Insights</h3>
+        <p>Real-time analytics and actionable insights to optimize your conversion strategy.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Value Props -->
+  <section class="section">
+    <h2 class="section-title">Why Choose Us</h2>
+    <p class="section-subtitle">Built for modern property management teams</p>
+    
+    <div class="value-props">
+      <div class="value-prop">
+        <h3>Simple</h3>
+        <p>Intuitive interface that requires no technical expertise. Get started in minutes.</p>
+      </div>
+      
+      <div class="value-prop">
+        <h3>Scalable</h3>
+        <p>Grow from 10 to 10,000 properties without changing your workflow or tools.</p>
+      </div>
+      
+      <div class="value-prop">
+        <h3>Powerful</h3>
+        <p>Enterprise-grade features that rival expensive solutions at a fraction of the cost.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="section">
+    <h2 class="section-title">How It Works</h2>
+    <p class="section-subtitle">A simple 4-step process to convert visitors into customers</p>
+    
+    <div class="steps-container">
+      <div class="step">
+        <div class="step-number">1</div>
+        <h3>Lead Capture</h3>
+        <p>Visitor lands on your site and starts chatting with AI</p>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">2</div>
+        <h3>AI Engagement</h3>
+        <p>Chatbot qualifies and collects property preferences</p>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">3</div>
+        <h3>Qualification</h3>
+        <p>AI scores leads based on budget and intent</p>
+      </div>
+      
+      <div class="step">
+        <div class="step-number">4</div>
+        <h3>Booking</h3>
+        <p>Schedule viewings automatically with qualified leads</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Trust Section -->
+  <section class="trust-section">
+    <h2 class="section-title">Trusted by Industry Leaders</h2>
+    <p class="section-subtitle">See the results our customers achieve</p>
+    
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-number">+30%</div>
+        <div class="stat-label">Conversion Rate</div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-number">50%</div>
+        <div class="stat-label">Time Saved</div>
+      </div>
+      
+      <div class="stat-card">
+        <div class="stat-number">24/7</div>
+        <div class="stat-label">Lead Capture</div>
+      </div>
+    </div>
+    
+    <div class="testimonials">
+      <div class="testimonial-card">
+        <p class="testimonial-text">PropertyHub transformed our lead generation. We went from 20 leads per month to over 150, all qualified and ready to view properties.</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">JD</div>
+          <div>
+            <div class="testimonial-name">John Davis</div>
+            <div class="testimonial-role">CEO, Prime Properties</div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="testimonial-card">
+        <p class="testimonial-text">The AI chatbot handles 80% of initial inquiries automatically. Our team now focuses on closing deals instead of answering basic questions.</p>
+        <div class="testimonial-author">
+          <div class="testimonial-avatar">SM</div>
+          <div>
+            <div class="testimonial-name">Sarah Mitchell</div>
+            <div class="testimonial-role">Director, Urban Living</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section class="final-cta" id="demo">
+    <h2>Ready to Transform Your Business?</h2>
+    <p>Join hundreds of property management companies already using PropertyHub to grow their business.</p>
+    <a href="#" class="hero-cta">Book a Demo</a>
+  </section>
+
+  <script>
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({
+            behavior: 'smooth',
+            block: 'start'
+          });
+        }
+      });
+    });
+
+    // Intersection Observer for animations
+    const observerOptions = {
+      threshold: 0.1,
+      rootMargin: '0px 0px -50px 0px'
+    };
+
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.style.animation = 'fadeInUp 0.6s ease forwards';
+          observer.unobserve(entry.target);
+        }
+      });
+    }, observerOptions);
+
+    // Observe all cards and sections
+    document.querySelectorAll('.feature-card, .value-prop, .step, .stat-card, .testimonial-card').forEach(el => {
+      el.style.opacity = '0';
+      observer.observe(el);
+    });
+  </script>
+</body>
+</html>

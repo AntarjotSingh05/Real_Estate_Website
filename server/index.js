@@ -81,6 +81,10 @@ app.get('/dashboard', (req, res) => {
   res.sendFile(path.join(frontendDir, "index.html"));
 });
 
+app.get('/landing', (req, res) => {
+  res.sendFile(path.join(frontendDir, "landing.html"));
+});
+
 const port = Number(process.env.PORT || 3000);
 
 initDb()
